@@ -23,18 +23,20 @@ Puppet::Reports.register_report(:boundary) do
     def process
       return if self.status == 'unchanged'
       if self.status == 'failed'
-        tags = ["puppet", "exception", "failure", self.status ]
+        tags = ["puppet", "exception", "failure", self.status, self.kind, self.environment, self.configuration_version.to_s ]
         title = "Puppet Exception"
         status = "OPEN"
         severity = "ERROR"
+        message = self.configuration_version.to_s
       else
-        tags = ["puppet", self.status ]
+        tags = ["puppet", self.status, self.kind, self.environment, self.configuration_version.to_s  ]
         title = "Puppet"
         status = "OK"
         severity = "INFO"
+        message = self.configuration_version.to_s
       end
 
-      create_event(title, tags,status, severity ,self.host,self.time)
+      create_event(title, tags,status, severity ,self.host,self.time, message)
     end
   else
     Puppet.debug "Boundary annotations disabled"
@@ -43,10 +45,10 @@ Puppet::Reports.register_report(:boundary) do
     end
   end
 
-  def create_event( title, tags, status, severity, host,time)
+  def create_event( title, tags, status, severity, host,time, message)
     auth = auth_encode("#{BOUNDARY_API}:")
     headers = {"Authorization" => "Basic #{auth}", "Content-Type" => "application/json"}
-    fingerprints=["@title"]
+    fingerprints=["@title", "@message"]
     source = {"ref" => host, "type" => "meter" }
     event = {
 	 :source => source,
@@ -55,8 +57,8 @@ Puppet::Reports.register_report(:boundary) do
       :fingerprintFields => fingerprints,
       :tags => tags,
       :title => title ,
-      :message => host,
-      :createdAt => time.to_i
+      :message => message,
+      :createdAt => time.strftime('%Y-%m-%dT%H:%M:%S')
 
     }
 
